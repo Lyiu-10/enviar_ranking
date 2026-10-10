@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranking</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ceu1: #dff1fb; --ceu2: #e9f7ec; --creme: #fffaf2;
+    --azul: #3a86c8; --azul-esc: #1f4e79; --verde: #4caf6e; --verde-esc: #2e7d4f;
+    --marrom: #8b5e3c; --marrom-esc: #5a3a24; --areia: #f3e3cc;
+    --ouro: #f2c14e; --prata: #c9d6df; --bronze: #d49a6a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: Fredoka, "Trebuchet MS", sans-serif; color: var(--marrom-esc);
+    background: linear-gradient(160deg, var(--ceu1) 0%, var(--ceu2) 55%, var(--areia) 100%);
+    display: flex; flex-direction: column; padding: 3vh 4vw 4vh;
+  }
+  /* morrinhos e nuvens de fundo */
+  body::before, body::after {
+    content: ""; position: fixed; z-index: -1; border-radius: 50%;
+  }
+  body::before { width: 80vw; height: 40vh; left: -15vw; bottom: -24vh; background: #bfe3c6; }
+  body::after  { width: 70vw; height: 36vh; right: -18vw; bottom: -22vh; background: #a8d5b5; }
+  .nuvem { position: fixed; z-index: -1; font-size: 9vh; opacity: .55; animation: vagar 60s linear infinite; }
+  @keyframes vagar { from { transform: translateX(-20vw); } to { transform: translateX(120vw); } }
+
+  header { text-align: center; margin-bottom: 3vh; }
+  .evento {
+    display: inline-block; padding: .8vh 4vw; border-radius: 99px;
+    background: var(--verde); color: #fff; font-size: 7vh; font-weight: 700; letter-spacing: .02em;
+    box-shadow: 0 .8vh 0 var(--verde-esc);
+  }
+
+  #grade {
+    flex: 1; display: flex; flex-direction: column; gap: 1.1vh;
+    width: min(100%, 130vh); margin: 0 auto;
+  }
+  .card {
+    flex: 1; position: relative; display: flex; align-items: center; gap: 1.6vw;
+    padding: 0 2vw; border-radius: 2.2vh; background: var(--creme);
+    border: .3vh solid #fff; box-shadow: 0 .5vh 0 #e2d2bb, 0 1vh 2vh rgba(90, 58, 36, .1);
+    will-change: transform;
+  }
+  .pos {
+    flex: none; width: 5.2vh; height: 5.2vh; border-radius: 50%; display: grid; place-items: center;
+    font-size: 2.8vh; font-weight: 700; color: #fff; background: var(--azul);
+    box-shadow: inset 0 -.6vh 0 rgba(31, 78, 121, .35);
+  }
+  .p1 .pos { background: var(--ouro); color: var(--marrom-esc); }
+  .p2 .pos { background: var(--prata); color: var(--azul-esc); }
+  .p3 .pos { background: var(--bronze); }
+  .p1 { background: #fff6dc; border-color: var(--ouro); }
+  .avatar {
+    flex: none; width: 6.4vh; height: 6.4vh; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #fff 0%, var(--bg) 70%);
+    border: .35vh solid #fff; box-shadow: 0 .3vh .8vh rgba(31, 78, 121, .18);
+  }
+  .avatar svg { display: block; width: 100%; height: 100%; }
+  .corpo { fill: var(--c); }
+  .cabeca { fill: var(--c2); stroke: var(--c); stroke-width: 1.4; }
+  .olho { fill: var(--marrom-esc); }
+  .boca { fill: none; stroke: var(--marrom-esc); stroke-width: 1.6; stroke-linecap: round; }
+  .coroa { display: none; stroke: #fff; stroke-width: .8; stroke-linejoin: round; }
+  .p1 .coroa { display: inline; fill: var(--ouro); }
+  .p2 .coroa { display: inline; fill: #aebfcc; }
+  .p3 .coroa { display: inline; fill: var(--bronze); }
+  .nome {
+    flex: 1; min-width: 0; font-size: 3.4vh; font-weight: 600; color: var(--marrom-esc);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .medalha { font-size: 3.8vh; }
+
+  .subiu { z-index: 5; animation: brilho 1.2s ease-in-out 2; }
+  @keyframes brilho {
+    0%, 100% { box-shadow: 0 .5vh 0 #e2d2bb, 0 0 0 0 rgba(76, 175, 110, 0); }
+    50% { box-shadow: 0 .5vh 0 #e2d2bb, 0 0 0 .8vh rgba(76, 175, 110, .4); }
+  }
+  .tag {
+    position: absolute; top: -1.2vh; right: 5vw; padding: .2vh 1vw; border-radius: 99px;
+    background: var(--verde); color: #fff; font-size: 2.2vh; font-weight: 700;
+    box-shadow: 0 .4vh 0 var(--verde-esc); animation: surgir .4s ease-out;
+  }
+  @keyframes surgir { from { transform: scale(0); } }
+
+  /* lugar vazio do top 10: a "sombra" do cartão */
+  .sombra { background: rgba(255, 255, 255, .45); border: .35vh dashed #cfdccf; box-shadow: none; }
+  .sombra .pos { background: #d6e4ec; color: #fff; box-shadow: none; }
+  .sombra .avatar { background: #e7eee6; border-color: transparent; box-shadow: none; }
+  .sombra .nome { height: 2.4vh; max-width: 60%; border-radius: 99px; background: #e7eee6; }
+
+  .confete { position: fixed; z-index: 10; font-size: 3.4vh; pointer-events: none; }
+</style>
+</head>
+<body>
+<span class="nuvem" style="top:4vh">☁️</span>
+<span class="nuvem" style="top:16vh;animation-delay:-30s">☁️</span>
+
+<header><div class="evento" id="evento"></div></header>
+<main id="grade"></main>
+
+<script>
+// bonequinho sem gênero: corpo colorido, rostinho sorrindo e coroa (só aparece no top 3)
+const PESSOA = `<svg viewBox="6 3 36 36">
+  <path class="corpo" d="M9 49c0-9.5 6.7-16 15-16s15 6.5 15 16z"/>
+  <ellipse cx="18" cy="39" rx="3.6" ry="2.2" fill="#fff" opacity=".3"/>
+  <circle class="cabeca" cx="24" cy="22.5" r="9.5"/>
+  <ellipse cx="20.5" cy="18.5" rx="2.6" ry="1.6" fill="#fff" opacity=".55"/>
+  <circle class="olho" cx="20.7" cy="22" r="1.4"/><circle class="olho" cx="27.3" cy="22" r="1.4"/>
+  <circle cx="18.6" cy="25.6" r="1.7" fill="#f2a1a1" opacity=".7"/><circle cx="29.4" cy="25.6" r="1.7" fill="#f2a1a1" opacity=".7"/>
+  <path class="boca" d="M21 26q3 2.6 6 0"/>
+  <path class="coroa" d="M16.5 13.5l1.2-7.5 3.6 4.2L24 4.5l2.7 5.7 3.6-4.2 1.2 7.5z"/>
+</svg>`;
+// cor por pessoa (corpo, rosto, fundo): tons de azul, verde e marrom
+const CORES = [['#3a86c8','#b9dcf5','#d7ebfa'], ['#4caf6e','#bfe8cb','#d9f2e0'], ['#b5774a','#efcfb3','#f6e6d6'],
+  ['#2f9e9e','#b8e6e2','#d3f0ee'], ['#5aa9e6','#cde6fa','#e0f0fc'], ['#7aa84f','#d3e8bd','#e6f2d9'],
+  ['#d49a6a','#f5d6bb','#faebdd'], ['#2f6aa3','#bed3ea','#d6e4f2']];
+const MEDALHAS = ['🥇','🥈','🥉'];
+
+const grade = document.getElementById('grade');
+const cards = new Map();   // id -> elemento
+const posicao = new Map(); // id -> índice anterior
+let assinatura = '', eventoAtual = null;
+
+function criarCard(p) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  const [c, c2, bg] = CORES[p.av % CORES.length];
+  el.innerHTML = `<div class="pos"></div>
+    <div class="avatar" style="--c:${c};--c2:${c2};--bg:${bg}">${PESSOA}</div>
+    <div class="nome"></div><span class="medalha"></span>`;
+  el.querySelector('.nome').textContent = p.nome;
+  return el;
+}
+
+function confete(el) {
+  const r = el.getBoundingClientRect();
+  for (let i = 0; i < 8; i++) {
+    const c = document.createElement('span');
+    c.className = 'confete';
+    c.textContent = ['🎉','⭐','💚','💙','✨','🎈'][i % 6];
+    c.style.left = r.left + r.width / 2 + 'px';
+    c.style.top = r.top + r.height / 2 + 'px';
+    document.body.appendChild(c);
+    const ang = Math.random() * Math.PI * 2, dist = 80 + Math.random() * 100;
+    c.animate([
+      { transform: 'translate(-50%,-50%) scale(.4)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px)) scale(1.2) rotate(${ang * 90}deg)`, opacity: 0 }
+    ], { duration: 1400, easing: 'cubic-bezier(.1,.7,.3,1)' }).onfinish = () => c.remove();
+  }
+}
+
+function desenhar(dados) {
+  if (dados.evento !== eventoAtual) {      // evento novo: placar zera
+    eventoAtual = dados.evento;
+    document.getElementById('evento').textContent = dados.evento;
+    grade.innerHTML = ''; cards.clear(); posicao.clear();
+  }
+  grade.querySelectorAll('.sombra').forEach(s => s.remove());
+
+  // FLIP: guarda onde cada card estava, reordena, anima do lugar antigo para o novo
+  const antes = new Map([...cards].map(([id, el]) => [id, el.getBoundingClientRect()]));
+  const ids = new Set(dados.top.map(p => p.id));
+  for (const [id, el] of cards) if (!ids.has(id)) { el.remove(); cards.delete(id); posicao.delete(id); }
+
+  dados.top.forEach((p, i) => {
+    let el = cards.get(p.id);
+    if (!el) { el = criarCard(p); cards.set(p.id, el); }
+    el.classList.remove('p1', 'p2', 'p3');
+    if (i < 3) el.classList.add('p' + (i + 1));
+    el.querySelector('.pos').textContent = i + 1;
+    el.querySelector('.medalha').textContent = MEDALHAS[i] || '';
+    grade.appendChild(el);
+  });
+  for (let i = dados.top.length; i < 10; i++) {   // posições ainda vazias ficam como sombra
+    grade.insertAdjacentHTML('beforeend', `<div class="card sombra"><div class="pos">${i + 1}</div><div class="avatar"></div><div class="nome"></div></div>`);
+  }
+
+  dados.top.forEach((p, i) => {
+    const el = cards.get(p.id), r0 = antes.get(p.id), antigo = posicao.get(p.id);
+    posicao.set(p.id, i);
+    if (!r0) {                              // estreou no top 10
+      el.animate([{ transform: 'scale(.8)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 500, easing: 'ease-out' });
+      return;
+    }
+    const r1 = el.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
+    if (dx || dy) {
+      el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }],
+                 { duration: 900, easing: 'cubic-bezier(.3,.9,.3,1)' });
+    }
+    if (antigo !== undefined && i < antigo) {   // subiu
+      el.classList.remove('subiu'); void el.offsetWidth; el.classList.add('subiu');
+      el.querySelector('.tag')?.remove();
+      el.insertAdjacentHTML('beforeend', `<span class="tag">⬆ subiu ${antigo - i}!</span>`);
+      setTimeout(() => confete(el), 800);
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.classList.remove('subiu'); el.querySelector('.tag')?.remove(); }, 6000);
+    }
+  });
+}
+
+async function atualizar() {
+  try {
+    const dados = await (await fetch('/api/ranking', { cache: 'no-store' })).json();
+    const s = JSON.stringify(dados);
+    if (s !== assinatura) { assinatura = s; desenhar(dados); }
+  } catch { /* servidor fora do ar: mantém a tela como está e tenta de novo */ }
+}
+atualizar();
+setInterval(atualizar, 1500);
+</script>
+</body>
+</html>

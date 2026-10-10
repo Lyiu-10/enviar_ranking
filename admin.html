@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caixa · Ranking</title>
+<style>
+  :root {
+    --fundo: #f3f7f4; --card: #fff; --linha: #e1e9e3; --texto: #3b2a1e; --suave: #8a7a6c;
+    --verde: #3f9d62; --verde-claro: #eaf6ee; --azul: #1f4e79; --azul-claro: #e6f1fa;
+    --marrom: #8b5e3c; --areia: #fbf6ee; --erro: #b5502d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; background: var(--fundo); color: var(--texto); }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; }
+  input { font: inherit; color: inherit; border: 2px solid var(--linha); border-radius: 12px; padding: 12px 14px; background: #fff; }
+  input:focus { outline: none; border-color: #7fb6e0; }
+
+  /* topo */
+  .topo { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--linha); }
+  .topo h1 { font-size: 1.15em; margin: 0; color: var(--azul); }
+  .chip-evento { background: var(--verde-claro); color: var(--verde); font-weight: 600; padding: 4px 12px; border-radius: 99px; font-size: .9em; }
+  .topo .acoes { margin-left: auto; display: flex; gap: 8px; }
+  .btn-leve { background: transparent; color: var(--azul); padding: 8px 12px; text-decoration: none; border-radius: 10px; font-size: .95em; }
+  .btn-leve:hover { background: var(--azul-claro); }
+
+  /* layout */
+  main { display: grid; grid-template-columns: 1fr 380px; gap: 24px; padding: 24px; max-width: 1400px; margin: 0 auto; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .passo { margin-bottom: 26px; }
+  .passo h2 { display: flex; align-items: center; gap: 10px; font-size: 1em; color: var(--azul); margin: 0 0 10px; }
+  .num { width: 26px; height: 26px; border-radius: 50%; background: var(--azul); color: #fff; display: grid; place-items: center; font-size: .85em; }
+
+  #nome { width: 100%; font-size: 1.5em; padding: 14px 16px; }
+  .dica { min-height: 28px; margin-top: 8px; font-size: .95em; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .dica.existe { color: var(--verde); }
+  .dica.novo { color: #a0731a; }
+  .sugestao { background: var(--azul-claro); color: var(--azul); padding: 4px 12px; border-radius: 99px; }
+
+  /* comidas */
+  #itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .item {
+    position: relative; height: 140px; padding: 12px 8px; background: #fff; border: 2px solid var(--linha);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    color: var(--texto); transition: border-color .15s, background .15s, transform .08s;
+  }
+  .item:hover { border-color: #b8dcc5; }
+  .item:active { transform: scale(.96); }
+  .item .emoji { font-size: 2.6em; line-height: 1; }
+  .item .rotulo { font-size: 1.08em; font-weight: 600; text-align: center; }
+  .item .preco { font-size: .9em; color: var(--suave); }
+  .item.sel { border-color: var(--verde); background: var(--verde-claro); }
+  .item .qtd {
+    position: absolute; top: -9px; right: -9px; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 99px;
+    background: var(--verde); color: #fff; font-weight: 700; display: none; place-items: center; box-shadow: 0 2px 6px rgba(63,157,98,.35);
+  }
+  .item.sel .qtd { display: grid; }
+
+  /* cupom */
+  .cupom { position: sticky; top: 16px; background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 20px; box-shadow: 0 6px 20px rgba(31,78,121,.06); }
+  .cupom-topo { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .cupom h2 { margin: 0; font-size: 1em; color: var(--azul); }
+  .cupom .limpar { background: none; color: var(--suave); font-size: .85em; padding: 0; }
+  .cliente { font-size: 1.15em; font-weight: 600; min-height: 1.5em; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cliente.vazio { color: #c2b6aa; font-weight: 400; }
+  #linhas { border-top: 1px dashed var(--linha); border-bottom: 1px dashed var(--linha); padding: 6px 0; min-height: 60px; }
+  .linha { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; }
+  .linha .sub { min-width: 80px; text-align: right; font-variant-numeric: tabular-nums; }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .stepper button { width: 28px; height: 28px; border-radius: 8px; background: var(--azul-claro); color: var(--azul); font-weight: 700; }
+  .stepper span { min-width: 18px; text-align: center; font-weight: 600; }
+  .sem-itens { color: #c2b6aa; text-align: center; padding: 16px 0; }
+  details.outro { margin: 10px 0 0; }
+  details.outro summary { cursor: pointer; color: var(--azul); font-size: .9em; list-style: none; }
+  details.outro summary::-webkit-details-marker { display: none; }
+  .outro-linha { display: flex; gap: 8px; margin-top: 8px; }
+  .outro-linha input { flex: 1; min-width: 0; padding: 8px 12px; }
+  .outro-linha button { background: var(--azul-claro); color: var(--azul); padding: 0 14px; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0; }
+  .total span { color: var(--suave); }
+  .total b { font-size: 2em; color: var(--azul); font-variant-numeric: tabular-nums; }
+  #ok { width: 100%; padding: 16px; font-size: 1.2em; font-weight: 700; background: var(--verde); color: #fff; box-shadow: 0 4px 0 #2f7a4b; }
+  #ok:disabled { background: #cfdcd3; box-shadow: none; cursor: default; }
+  .atalho { text-align: center; color: var(--suave); font-size: .8em; margin-top: 10px; }
+
+  /* histórico */
+  .historico { grid-column: 1 / -1; background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 8px 20px 16px; }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--linha); margin-bottom: 8px; }
+  .abas button { background: none; padding: 12px 14px; color: var(--suave); border-radius: 0; border-bottom: 3px solid transparent; }
+  .abas button.ativa { color: var(--azul); border-bottom-color: var(--azul); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 6px; border-bottom: 1px solid #f0f3f1; vertical-align: top; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.hora, .itens-lanc { color: var(--suave); font-size: .88em; }
+  .apagar { background: none; color: #c99a86; padding: 2px 8px; }
+  .apagar:hover { color: var(--erro); background: #fbece5; }
+  tr.corte td { border-bottom: 2px dashed #cfe0d4; }
+
+  /* aviso */
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%); padding: 14px 22px; border-radius: 14px;
+    font-weight: 600; font-size: 1.05em; box-shadow: 0 8px 24px rgba(0,0,0,.12); transition: transform .25s ease; z-index: 20;
+  }
+  #toast.mostrar { transform: translate(-50%, 0); }
+  #toast.ok { background: var(--verde); color: #fff; }
+  #toast.erro { background: var(--erro); color: #fff; }
+
+  /* configurações */
+  dialog { border: 0; border-radius: 18px; padding: 0; width: min(560px, 94vw); box-shadow: 0 20px 60px rgba(31,78,121,.25); }
+  dialog::backdrop { background: rgba(31,78,121,.25); }
+  .dlg-topo { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--linha); }
+  .dlg-topo h2 { margin: 0; font-size: 1.1em; color: var(--azul); }
+  .dlg-corpo { padding: 18px 22px; max-height: 70vh; overflow: auto; }
+  .dlg-corpo h3 { font-size: .95em; color: var(--azul); margin: 6px 0 8px; }
+  .dlg-corpo p { color: var(--suave); font-size: .85em; margin: 4px 0 10px; }
+  .ed-linha { display: flex; gap: 8px; margin-bottom: 8px; }
+  .ed-linha input { padding: 8px 10px; }
+  .ed-linha input:first-child { flex: 1; min-width: 0; }
+  .ed-linha input:nth-child(2) { width: 100px; }
+  .ed-linha button { background: none; color: #c99a86; padding: 0 8px; }
+  .btn { padding: 10px 16px; background: var(--verde); color: #fff; font-weight: 600; }
+  .btn.sec { background: var(--azul-claro); color: var(--azul); }
+  .btn.alerta { background: #f6e6d8; color: var(--marrom); }
+  hr { border: 0; border-top: 1px solid var(--linha); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <h1>Caixa</h1>
+  <span class="chip-evento" id="evento">…</span>
+  <div class="acoes">
+    <a class="btn-leve" href="/" target="_blank">📺 Abrir TV</a>
+    <button class="btn-leve" id="abrirConfig">⚙ Configurações</button>
+  </div>
+</header>
+
+<main>
+  <form id="lancar" autocomplete="off">
+    <div class="passo">
+      <h2><span class="num">1</span> Cliente</h2>
+      <input id="nome" list="nomes" placeholder="Digite o nome do cliente" autofocus>
+      <datalist id="nomes"></datalist>
+      <div class="dica" id="dica"></div>
+    </div>
+    <div class="passo">
+      <h2><span class="num">2</span> Toque nas comidas</h2>
+      <div id="itens"></div>
+    </div>
+  </form>
+
+  <aside class="cupom">
+    <div class="cupom-topo">
+      <h2>Pedido</h2>
+      <button type="button" class="limpar" id="limpar">limpar</button>
+    </div>
+    <div class="cliente vazio" id="cliente">Sem cliente</div>
+    <div id="linhas"></div>
+    <details class="outro" id="outro">
+      <summary>+ outro valor</summary>
+      <div class="outro-linha">
+        <input id="outroValor" inputmode="decimal" placeholder="R$ 0,00">
+        <button type="button" id="addOutro">Adicionar</button>
+      </div>
+    </details>
+    <div class="total"><span>Total</span><b id="total">R$ 0,00</b></div>
+    <button type="submit" form="lancar" id="ok" disabled>Lançar</button>
+    <div class="atalho">Enter no nome também lança · Esc limpa</div>
+  </aside>
+
+  <section class="historico">
+    <div class="abas">
+      <button type="button" class="ativa" data-aba="ultimos">Últimos lançamentos</button>
+      <button type="button" data-aba="placar">Placar com valores</button>
+    </div>
+    <table id="aba-ultimos"><tbody id="ultimos"></tbody></table>
+    <table id="aba-placar" hidden><tbody id="placar"></tbody></table>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<dialog id="config">
+  <div class="dlg-topo">
+    <h2>Configurações</h2>
+    <button class="btn-leve" id="fecharConfig">Fechar ✕</button>
+  </div>
+  <div class="dlg-corpo">
+    <h3>Cardápio</h3>
+    <p>Comece o nome com um emoji para ele aparecer grande no botão (🌭 🍔 🍿 🥤).</p>
+    <div id="editor"></div>
+    <button type="button" class="btn sec" id="novoItem">+ item</button>
+    <button type="button" class="btn" id="salvarCardapio">Salvar cardápio</button>
+    <hr>
+    <h3>Novo evento</h3>
+    <p>Zera o ranking da TV. Nada é apagado: os lançamentos antigos ficam salvos, e digitar o nome de um evento antigo volta para ele.
+      Eventos já usados: <span id="eventos"></span></p>
+    <form id="novo" class="ed-linha">
+      <input name="evento" placeholder="Ex.: Dia dos Pais" required>
+      <button class="btn alerta">Começar evento</button>
+    </form>
+  </div>
+</dialog>
+
+<script>
+const VALOR_ALTO = 1000; // pedido acima disso pede confirmação
+const $ = id => document.getElementById(id);
+const brl = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const chave = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+const valorBr = s => { s = String(s).replace(/R\$|\s/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); return Number(s); };
+const el = (tag, props = {}, ...filhos) => { const e = Object.assign(document.createElement(tag), props); e.append(...filhos); return e; };
+const separarEmoji = nome => {
+  const m = nome.match(/^((?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍\p{Extended_Pictographic})*)\s*(.*)$/u);
+  return m ? [m[1], m[2]] : ['🍽️', nome];
+};
+let estado = { ranking: [], pessoas: [], ultimos: [], eventos: [], cardapio: [] };
+const pedido = new Map(); // nome do item -> { nome, preco, qtd }
+
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro);
+}
+let toastT;
+function aviso(t, ok = true) {
+  const e = $('toast'); e.textContent = t; e.className = (ok ? 'ok' : 'erro') + ' mostrar';
+  clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('mostrar'), ok ? 3500 : 5000);
+}
+
+// ---------- pedido ----------
+const totalPedido = () => [...pedido.values()].reduce((s, p) => s + p.preco * p.qtd, 0);
+function mudar(nome, preco, delta) {
+  const p = pedido.get(nome) || { nome, preco, qtd: 0 };
+  p.qtd += delta;
+  p.qtd > 0 ? pedido.set(nome, p) : pedido.delete(nome);
+  desenharPedido();
+}
+function desenharPedido() {
+  $('linhas').replaceChildren(...[...pedido.values()].map(p => el('div', { className: 'linha' },
+    el('span', { textContent: p.nome }),
+    el('div', { className: 'stepper' },
+      el('button', { type: 'button', textContent: '−', onmousedown: e => e.preventDefault(), onclick: () => mudar(p.nome, p.preco, -1) }),
+      el('span', { textContent: p.qtd }),
+      el('button', { type: 'button', textContent: '+', onmousedown: e => e.preventDefault(), onclick: () => mudar(p.nome, p.preco, 1) })),
+    el('span', { className: 'sub', textContent: brl(p.preco * p.qtd) }))));
+  if (!pedido.size) $('linhas').append(el('div', { className: 'sem-itens', textContent: 'Nenhum item ainda' }));
+  for (const b of $('itens').children) {
+    const q = pedido.get(b.dataset.nome)?.qtd || 0;
+    b.classList.toggle('sel', q > 0); b.querySelector('.qtd').textContent = q;
+  }
+  atualizarBotao();
+}
+function atualizarBotao() {
+  const nome = $('nome').value.trim(), total = totalPedido();
+  $('total').textContent = brl(total);
+  $('cliente').textContent = nome || 'Sem cliente';
+  $('cliente').classList.toggle('vazio', !nome);
+  $('ok').disabled = !nome || !total;
+  $('ok').textContent = total ? `Lançar ${brl(total)}` : 'Lançar';
+}
+function desenharItens() {
+  $('itens').replaceChildren(...estado.cardapio.map(i => {
+    const [emoji, rotulo] = separarEmoji(i.nome);
+    const b = el('button', { type: 'button', className: 'item' },
+      el('span', { className: 'emoji', textContent: emoji }), el('span', { className: 'rotulo', textContent: rotulo }),
+      el('span', { className: 'preco', textContent: brl(i.preco) }), el('span', { className: 'qtd' }));
+    b.dataset.nome = i.nome;
+    b.onmousedown = e => e.preventDefault(); // o cursor fica no nome: Enter lança, não repete o item
+    b.onclick = () => mudar(i.nome, i.preco, 1);
+    return b;
+  }));
+  desenharPedido();
+}
+function limparPedido() { pedido.clear(); desenharPedido(); $('nome').focus(); }
+$('limpar').onclick = limparPedido;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('config').open) limparPedido(); });
+$('addOutro').onclick = () => {
+  const v = valorBr($('outroValor').value);
+  if (!(v > 0)) { aviso('Valor inválido. Use 10 ou 10,50', false); return; }
+  mudar('Outro valor ' + brl(v), v, 1); $('outroValor').value = ''; $('outro').open = false; $('nome').focus();
+};
+$('outroValor').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('addOutro').click(); } };
+
+// ---------- dados ----------
+async function carregar() {
+  estado = await (await fetch('/api/estado', { cache: 'no-store' })).json();
+  $('evento').textContent = estado.evento;
+  $('eventos').textContent = estado.eventos.join(' · ') || '—';
+  $('nomes').replaceChildren(...estado.pessoas.map(p => el('option', { value: p.nome })));
+  desenharItens();
+
+  $('placar').replaceChildren(...estado.ranking.map((p, i) => el('tr', { className: i === 9 ? 'corte' : '' },
+    el('td', { textContent: i + 1 + 'º' }), el('td', { textContent: p.nome }), el('td', { className: 'n', textContent: brl(p.total) }))));
+  if (!estado.ranking.length) $('placar').append(el('tr', {}, el('td', { className: 'hora', textContent: 'Nenhum lançamento neste evento.' })));
+
+  $('ultimos').replaceChildren(...estado.ultimos.slice(0, 10).map(l => el('tr', {},
+    el('td', { className: 'hora', textContent: l.quando.slice(11, 16) }),
+    el('td', {}, l.nome, el('div', { className: 'itens-lanc', textContent: l.itens || '' })),
+    el('td', { className: 'n', textContent: brl(l.valor) }),
+    el('td', { className: 'n' }, el('button', { className: 'apagar', textContent: 'apagar', onclick: async () => {
+      if (!confirm(`Apagar ${l.nome} — ${brl(l.valor)}?`)) return;
+      await post('/api/apagar', { id: l.id }); aviso(`Apagado: ${l.nome} — ${brl(l.valor)}`); carregar();
+    } })))));
+  if (!estado.ultimos.length) $('ultimos').append(el('tr', {}, el('td', { className: 'hora', textContent: 'Nenhum lançamento ainda.' })));
+  dica();
+}
+
+// Mostra, enquanto digita, se o cliente já existe ou se vai virar um cadastro novo
+function dica() {
+  const d = $('dica'), k = chave($('nome').value);
+  d.replaceChildren(); d.className = 'dica';
+  atualizarBotao();
+  if (!k) return;
+  const igual = estado.pessoas.find(p => p.id === k);
+  if (igual) {
+    const no = estado.ranking.findIndex(r => r.id === k);
+    d.className = 'dica existe';
+    d.textContent = `✔ ${igual.nome} já está cadastrado` +
+      (no >= 0 ? ` · ${no + 1}º lugar com ${brl(estado.ranking[no].total)}` : ' · primeira compra neste evento');
+    return;
+  }
+  const prim = k.split(' ')[0];
+  const parecidos = estado.pessoas.filter(p => p.id.includes(k) || p.id.split(' ')[0] === prim).slice(0, 4);
+  d.className = 'dica novo';
+  d.append(parecidos.length ? '🆕 Cliente novo. Não seria:' : '🆕 Cliente novo');
+  for (const p of parecidos) d.append(el('button', { type: 'button', className: 'sugestao', textContent: p.nome,
+    onclick: () => { $('nome').value = p.nome; dica(); $('nome').focus(); } }));
+}
+$('nome').oninput = dica;
+
+$('lancar').onsubmit = async e => {
+  e.preventDefault();
+  const nome = $('nome').value.trim(), total = Math.round(totalPedido() * 100) / 100;
+  if (!nome) { aviso('Digite o nome do cliente', false); $('nome').focus(); return; }
+  if (!total) { aviso('Toque nas comidas do pedido', false); return; }
+  if (total >= VALOR_ALTO && !confirm(`Confirma ${brl(total)} para ${nome}?`)) return;
+  const itens = [...pedido.values()].map(p => `${p.qtd}× ${p.nome}`).join(', ');
+  $('ok').disabled = true;
+  try {
+    await post('/api/lancar', { nome, valor: String(total), itens });
+    $('nome').value = ''; pedido.clear(); $('nome').focus();
+    await carregar();
+    const pos = estado.ranking.findIndex(r => r.id === chave(nome));
+    aviso(`✔ ${nome} + ${brl(total)} → ${pos + 1}º lugar`);
+  } catch (err) { aviso(err.message || 'Servidor desligado? Abra o INICIAR.bat', false); }
+  atualizarBotao();
+};
+
+// ---------- abas ----------
+document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('ativa', x === b));
+  $('aba-ultimos').hidden = b.dataset.aba !== 'ultimos';
+  $('aba-placar').hidden = b.dataset.aba !== 'placar';
+});
+
+// ---------- configurações ----------
+function linhaEditor(i = { nome: '', preco: '' }) {
+  const linha = el('div', { className: 'ed-linha' },
+    el('input', { value: i.nome, placeholder: '🌭 Nome da comida' }),
+    el('input', { value: i.preco === '' ? '' : String(i.preco).replace('.', ','), placeholder: 'Preço', inputMode: 'decimal' }),
+    el('button', { type: 'button', textContent: '✕', title: 'Remover', onclick: () => linha.remove() }));
+  return linha;
+}
+$('abrirConfig').onclick = () => { $('editor').replaceChildren(...estado.cardapio.map(linhaEditor)); $('config').showModal(); };
+$('fecharConfig').onclick = () => $('config').close();
+$('config').onclose = () => $('nome').focus();
+$('novoItem').onclick = () => $('editor').append(linhaEditor());
+$('salvarCardapio').onclick = async () => {
+  const cardapio = [...$('editor').children].map(l => ({ nome: l.children[0].value, preco: l.children[1].value }))
+    .filter(i => i.nome.trim() || i.preco.trim());
+  try { await post('/api/cardapio', { cardapio }); pedido.clear(); await carregar(); $('config').close(); aviso('Cardápio salvo.'); }
+  catch (err) { aviso(err.message, false); }
+};
+$('novo').onsubmit = async e => {
+  e.preventDefault();
+  const ev = e.target.evento.value.trim();
+  if (!confirm(`Começar o evento "${ev}"? O ranking da TV recomeça do zero.`)) return;
+  try { await post('/api/evento', { evento: ev }); e.target.reset(); await carregar(); $('config').close(); aviso(`Evento "${ev}" ativo.`); }
+  catch (err) { aviso(err.message, false); }
+};
+
+carregar();
+setInterval(() => { if (!$('config').open) carregar(); }, 5000); // se outro caixa também lançar, aparece aqui
+</script>
+</body>
+</html>
