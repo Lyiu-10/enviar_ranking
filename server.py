@@ -10,11 +10,12 @@ PASTA = os.path.dirname(os.path.abspath(__file__))
 ARQ = os.path.join(PASTA, "dados.json")
 BACKUPS = os.path.join(PASTA, "backups")
 PORTA = 8000
-CARDAPIO_INICIAL = [  # preços de exemplo: ajuste na tela de lançamento, em "Cardápio"
-    {"nome": "🌭 Cachorro-quente", "preco": 10}, {"nome": "🍔 Hambúrguer", "preco": 18},
-    {"nome": "🍿 Pipoca", "preco": 6}, {"nome": "🍬 Algodão-doce", "preco": 8},
-    {"nome": "🍫 Brigadeiro", "preco": 3}, {"nome": "🥤 Refrigerante", "preco": 6},
-    {"nome": "🧃 Suco", "preco": 7}, {"nome": "💧 Água", "preco": 4}]
+CATEGORIAS = ["Salgados", "Doces", "Bebidas"]
+CARDAPIO_INICIAL = [  # preços de exemplo: ajuste no caixa, em ⚙ Configurações
+    {"nome": "🌭 Cachorro-quente", "preco": 10, "cat": "Salgados"}, {"nome": "🍔 Hambúrguer", "preco": 18, "cat": "Salgados"},
+    {"nome": "🍿 Pipoca", "preco": 6, "cat": "Salgados"}, {"nome": "🍬 Algodão-doce", "preco": 8, "cat": "Doces"},
+    {"nome": "🍫 Brigadeiro", "preco": 3, "cat": "Doces"}, {"nome": "🥤 Refrigerante", "preco": 6, "cat": "Bebidas"},
+    {"nome": "🧃 Suco", "preco": 7, "cat": "Bebidas"}, {"nome": "💧 Água", "preco": 4, "cat": "Bebidas"}]
 
 
 def carregar():
@@ -23,6 +24,9 @@ def carregar():
     with open(ARQ, encoding="utf-8") as f:
         d = json.load(f)
     d.setdefault("cardapio", CARDAPIO_INICIAL)
+    padrao = {i["nome"]: i["cat"] for i in CARDAPIO_INICIAL}
+    for i in d["cardapio"]:  # cardápio salvo antes das categorias
+        i.setdefault("cat", padrao.get(i["nome"], CATEGORIAS[0]))
     return d
 
 
@@ -98,7 +102,7 @@ class H(BaseHTTPRequestHandler):
             eventos = list(dict.fromkeys(l["evento"] for l in d["lancamentos"]))
             return self._json({"evento": d["evento"], "ranking": ranking(d), "ultimos": ultimos,
                                "pessoas": [{"id": k, "nome": n} for k, n in sorted(unicos.items())],
-                               "eventos": eventos, "cardapio": d["cardapio"]})
+                               "eventos": eventos, "cardapio": d["cardapio"], "categorias": CATEGORIAS})
         self.send_error(404)
 
     def do_POST(self):
@@ -122,7 +126,8 @@ class H(BaseHTTPRequestHandler):
             d["lancamentos"] = [l for l in d["lancamentos"] if l.get("id") != body.get("id")]
         elif self.path == "/api/cardapio":
             try:
-                itens = [{"nome": " ".join(str(i["nome"]).split()), "preco": valor_br(i["preco"])}
+                itens = [{"nome": " ".join(str(i["nome"]).split()), "preco": valor_br(i["preco"]),
+                      "cat": i.get("cat") if i.get("cat") in CATEGORIAS else CATEGORIAS[0]}
                          for i in body.get("cardapio", [])]
             except (KeyError, TypeError, ValueError):
                 return self._json({"erro": "Confira os preços do cardápio"}, 400)

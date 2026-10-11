@@ -38,7 +38,13 @@
   .sugestao { background: var(--azul-claro); color: var(--azul); padding: 4px 12px; border-radius: 99px; }
 
   /* comidas */
-  #itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .busca { position: relative; margin-bottom: 16px; }
+  .busca::before { content: "🔍"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: .55; }
+  #busca { width: 100%; padding-left: 42px; font-size: 1.05em; }
+  .categoria h3 { font-size: .85em; text-transform: uppercase; letter-spacing: .08em; color: var(--marrom); margin: 0 0 10px; }
+  .categoria + .categoria { margin-top: 22px; }
+  .nada { color: var(--suave); padding: 12px 0; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
   .item {
     position: relative; height: 140px; padding: 12px 8px; background: #fff; border: 2px solid var(--linha);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -114,7 +120,8 @@
   .dlg-corpo h3 { font-size: .95em; color: var(--azul); margin: 6px 0 8px; }
   .dlg-corpo p { color: var(--suave); font-size: .85em; margin: 4px 0 10px; }
   .ed-linha { display: flex; gap: 8px; margin-bottom: 8px; }
-  .ed-linha input { padding: 8px 10px; }
+  .ed-linha input, .ed-linha select { padding: 8px 10px; }
+  select { font: inherit; color: inherit; border: 2px solid var(--linha); border-radius: 12px; background: #fff; }
   .ed-linha input:first-child { flex: 1; min-width: 0; }
   .ed-linha input:nth-child(2) { width: 100px; }
   .ed-linha button { background: none; color: #c99a86; padding: 0 8px; }
@@ -145,6 +152,7 @@
     </div>
     <div class="passo">
       <h2><span class="num">2</span> Toque nas comidas</h2>
+      <div class="busca"><input id="busca" type="search" placeholder="Buscar comida… (Enter adiciona a primeira)"></div>
       <div id="itens"></div>
     </div>
   </form>
@@ -244,7 +252,7 @@ function desenharPedido() {
       el('button', { type: 'button', textContent: '+', onmousedown: e => e.preventDefault(), onclick: () => mudar(p.nome, p.preco, 1) })),
     el('span', { className: 'sub', textContent: brl(p.preco * p.qtd) }))));
   if (!pedido.size) $('linhas').append(el('div', { className: 'sem-itens', textContent: 'Nenhum item ainda' }));
-  for (const b of $('itens').children) {
+  for (const b of $('itens').querySelectorAll('.item')) {
     const q = pedido.get(b.dataset.nome)?.qtd || 0;
     b.classList.toggle('sel', q > 0); b.querySelector('.qtd').textContent = q;
   }
@@ -259,18 +267,29 @@ function atualizarBotao() {
   $('ok').textContent = total ? `Lançar ${brl(total)}` : 'Lançar';
 }
 function desenharItens() {
-  $('itens').replaceChildren(...estado.cardapio.map(i => {
-    const [emoji, rotulo] = separarEmoji(i.nome);
-    const b = el('button', { type: 'button', className: 'item' },
-      el('span', { className: 'emoji', textContent: emoji }), el('span', { className: 'rotulo', textContent: rotulo }),
-      el('span', { className: 'preco', textContent: brl(i.preco) }), el('span', { className: 'qtd' }));
-    b.dataset.nome = i.nome;
-    b.onmousedown = e => e.preventDefault(); // o cursor fica no nome: Enter lança, não repete o item
-    b.onclick = () => mudar(i.nome, i.preco, 1);
-    return b;
-  }));
+  const k = chave($('busca').value);
+  const secoes = estado.categorias.map(cat => {
+    const itens = estado.cardapio.filter(i => i.cat === cat && chave(i.nome).includes(k));
+    return itens.length && el('section', { className: 'categoria' }, el('h3', { textContent: cat }),
+      el('div', { className: 'grade' }, ...itens.map(i => {
+        const [emoji, rotulo] = separarEmoji(i.nome);
+        const b = el('button', { type: 'button', className: 'item' },
+          el('span', { className: 'emoji', textContent: emoji }), el('span', { className: 'rotulo', textContent: rotulo }),
+          el('span', { className: 'preco', textContent: brl(i.preco) }), el('span', { className: 'qtd' }));
+        b.dataset.nome = i.nome;
+        b.onmousedown = e => e.preventDefault(); // o cursor fica onde está: Enter lança, não repete o item
+        b.onclick = () => mudar(i.nome, i.preco, 1);
+        return b;
+      })));
+  }).filter(Boolean);
+  $('itens').replaceChildren(...(secoes.length ? secoes : [el('div', { className: 'nada', textContent: 'Nada com esse nome no cardápio.' })]));
   desenharPedido();
 }
+$('busca').oninput = desenharItens;
+$('busca').onkeydown = e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('itens').querySelector('.item')?.click(); $('busca').value = ''; desenharItens(); }
+  if (e.key === 'Escape' && $('busca').value) { e.stopPropagation(); $('busca').value = ''; desenharItens(); }
+};
 function limparPedido() { pedido.clear(); desenharPedido(); $('nome').focus(); }
 $('limpar').onclick = limparPedido;
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('config').open) limparPedido(); });
@@ -354,10 +373,13 @@ document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
 });
 
 // ---------- configurações ----------
-function linhaEditor(i = { nome: '', preco: '' }) {
+function linhaEditor(i = { nome: '', preco: '', cat: estado.categorias[0] }) {
+  const cat = el('select', {}, ...estado.categorias.map(c => el('option', { value: c, textContent: c })));
+  cat.value = i.cat;
   const linha = el('div', { className: 'ed-linha' },
     el('input', { value: i.nome, placeholder: '🌭 Nome da comida' }),
     el('input', { value: i.preco === '' ? '' : String(i.preco).replace('.', ','), placeholder: 'Preço', inputMode: 'decimal' }),
+    cat,
     el('button', { type: 'button', textContent: '✕', title: 'Remover', onclick: () => linha.remove() }));
   return linha;
 }
@@ -366,7 +388,7 @@ $('fecharConfig').onclick = () => $('config').close();
 $('config').onclose = () => $('nome').focus();
 $('novoItem').onclick = () => $('editor').append(linhaEditor());
 $('salvarCardapio').onclick = async () => {
-  const cardapio = [...$('editor').children].map(l => ({ nome: l.children[0].value, preco: l.children[1].value }))
+  const cardapio = [...$('editor').children].map(l => ({ nome: l.children[0].value, preco: l.children[1].value, cat: l.children[2].value }))
     .filter(i => i.nome.trim() || i.preco.trim());
   try { await post('/api/cardapio', { cardapio }); pedido.clear(); await carregar(); $('config').close(); aviso('Cardápio salvo.'); }
   catch (err) { aviso(err.message, false); }
