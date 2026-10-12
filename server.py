@@ -10,12 +10,29 @@ PASTA = os.path.dirname(os.path.abspath(__file__))
 ARQ = os.path.join(PASTA, "dados.json")
 BACKUPS = os.path.join(PASTA, "backups")
 PORTA = 8000
-CATEGORIAS = ["Salgados", "Doces", "Bebidas"]
-CARDAPIO_INICIAL = [  # preços de exemplo: ajuste no caixa, em ⚙ Configurações
-    {"nome": "🌭 Cachorro-quente", "preco": 10, "cat": "Salgados"}, {"nome": "🍔 Hambúrguer", "preco": 18, "cat": "Salgados"},
-    {"nome": "🍿 Pipoca", "preco": 6, "cat": "Salgados"}, {"nome": "🍬 Algodão-doce", "preco": 8, "cat": "Doces"},
-    {"nome": "🍫 Brigadeiro", "preco": 3, "cat": "Doces"}, {"nome": "🥤 Refrigerante", "preco": 6, "cat": "Bebidas"},
-    {"nome": "🧃 Suco", "preco": 7, "cat": "Bebidas"}, {"nome": "💧 Água", "preco": 4, "cat": "Bebidas"}]
+CATEGORIAS = ["Salgados", "Sucos", "Doces"]  # nesta ordem no caixa
+CARDAPIO_INICIAL = [  # ajuste no caixa, em ⚙ Configurações
+    {"nome": "🍝 Lasanha de carne", "preco": 5, "cat": "Salgados"},
+    {"nome": "🍝 Lasanha de frango", "preco": 5, "cat": "Salgados"},
+    {"nome": "🥩 Carne de sol na nata", "preco": 6, "cat": "Salgados"},
+    {"nome": "🥧 Empadão", "preco": 6, "cat": "Salgados"},
+    {"nome": "🥣 Creme de frango", "preco": 5, "cat": "Salgados"},
+    {"nome": "🍟 Batata frita", "preco": 5, "cat": "Salgados"},
+    {"nome": "🍗 Frango em tiras empanado", "preco": 5, "cat": "Salgados"},
+    {"nome": "🧆 Nuggets", "preco": 5, "cat": "Salgados"},
+    {"nome": "🌭 Monte seu cachorro-quente", "preco": 6, "cat": "Salgados"},
+    {"nome": "🦐 Creme de camarão", "preco": 6, "cat": "Salgados"},
+    {"nome": "🍤 Camarão empanado", "preco": 6, "cat": "Salgados"},
+    {"nome": "🦞 Caldo de lagosta", "preco": 6, "cat": "Salgados"},
+    {"nome": "🍓 Suco de morango com maracujá", "preco": 4, "cat": "Sucos"},
+    {"nome": "🍍 Suco de abacaxi com hortelã", "preco": 4, "cat": "Sucos"},
+    {"nome": "🍊 Suco de laranja feito na hora", "preco": 4, "cat": "Sucos"},
+    {"nome": "🥭 Suco de manga", "preco": 4, "cat": "Sucos"},
+    {"nome": "🥥 Água de coco", "preco": 5, "cat": "Sucos"},
+    {"nome": "🍪 Alfajor", "preco": 4, "cat": "Doces"},
+    {"nome": "🍰 Torta holandesa", "preco": 5, "cat": "Doces"},
+    {"nome": "🍮 Pudim", "preco": 5, "cat": "Doces"},
+    {"nome": "🍧 Dindin gourmet", "preco": 4, "cat": "Doces"}]
 
 
 def carregar():
@@ -68,6 +85,25 @@ def ranking(d):
     return [{"id": k, "nome": nomes[k], "total": round(tot[k], 2), "av": avatar[k]} for k in ordem]
 
 
+def vendas(d):
+    """Quanto saiu de cada item no evento atual, lido do texto '2× 🍝 Lasanha, 1× 🍮 Pudim' de cada lançamento."""
+    precos = {i["nome"]: i["preco"] for i in d["cardapio"]}
+    qtd, total, pedidos = {}, 0, 0
+    for l in d["lancamentos"]:
+        if l["evento"] != d["evento"]:
+            continue
+        total += l["valor"]
+        pedidos += 1
+        for parte in l.get("itens", "").split(", "):
+            n, _, nome = parte.partition("× ")
+            if n.isdigit() and nome in precos:
+                qtd[nome] = qtd.get(nome, 0) + int(n)
+    # ponytail: valor do item = preço atual do cardápio; se mudar o preço no meio do evento, a conta por item muda junto
+    itens = [{"nome": n, "qtd": q, "valor": round(q * precos[n], 2)} for n, q in sorted(qtd.items(), key=lambda x: -x[1])]
+    return {"total": round(total, 2), "pedidos": pedidos, "itens": itens,
+            "outros": round(total - sum(i["valor"] for i in itens), 2)}
+
+
 class H(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         b = json.dumps(obj, ensure_ascii=False).encode()
@@ -102,7 +138,7 @@ class H(BaseHTTPRequestHandler):
             eventos = list(dict.fromkeys(l["evento"] for l in d["lancamentos"]))
             return self._json({"evento": d["evento"], "ranking": ranking(d), "ultimos": ultimos,
                                "pessoas": [{"id": k, "nome": n} for k, n in sorted(unicos.items())],
-                               "eventos": eventos, "cardapio": d["cardapio"], "categorias": CATEGORIAS})
+                               "eventos": eventos, "cardapio": d["cardapio"], "categorias": CATEGORIAS, "vendas": vendas(d)})
         self.send_error(404)
 
     def do_POST(self):
@@ -169,6 +205,12 @@ def teste():
     assert [(p["nome"], p["total"], p["av"]) for p in r] == [("Fernando", 12, 2), ("Maria", 11, 1)], r
     d["evento"] = "B"
     assert [p["nome"] for p in ranking(d)] == ["Zé"]
+    d = {"evento": "A", "cardapio": [{"nome": "🍮 Pudim", "preco": 5}, {"nome": "🍪 Alfajor", "preco": 4}], "lancamentos": [
+        {"evento": "A", "valor": 14, "itens": "2× 🍮 Pudim, 1× 🍪 Alfajor"},
+        {"evento": "A", "valor": 17.5, "itens": "1× 🍮 Pudim, 1× Outro valor R$ 12,50"},
+        {"evento": "B", "valor": 99, "itens": "9× 🍮 Pudim"}]}
+    assert vendas(d) == {"total": 31.5, "pedidos": 2, "outros": 12.5, "itens": [
+        {"nome": "🍮 Pudim", "qtd": 3, "valor": 15}, {"nome": "🍪 Alfajor", "qtd": 1, "valor": 4}]}, vendas(d)
     assert valor_br("R$ 1.250,90") == 1250.9 and valor_br("10,5") == 10.5 and valor_br("10.50") == 10.5
     print("ok")
 

@@ -41,8 +41,20 @@
   .busca { position: relative; margin-bottom: 16px; }
   .busca::before { content: "🔍"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: .55; }
   #busca { width: 100%; padding-left: 42px; font-size: 1.05em; }
-  .categoria h3 { font-size: .85em; text-transform: uppercase; letter-spacing: .08em; color: var(--marrom); margin: 0 0 10px; }
-  .categoria + .categoria { margin-top: 22px; }
+  .categoria summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; user-select: none;
+    font-size: .85em; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--marrom);
+    padding: 8px 12px; margin: 0 -12px 10px; border-radius: 10px;
+  }
+  .categoria summary:hover { background: var(--areia); }
+  .categoria summary::-webkit-details-marker { display: none; }
+  .categoria summary::before { content: "▸"; transition: transform .15s; }
+  .categoria[open] summary::before { transform: rotate(90deg); }
+  .categoria summary small { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--suave); }
+  .categoria + .categoria { margin-top: 12px; }
+  .resumo-vendas { display: flex; gap: 32px; padding: 10px 6px 14px; }
+  .resumo-vendas span { display: block; color: var(--suave); font-size: .85em; }
+  .resumo-vendas b { font-size: 1.6em; color: var(--azul); font-variant-numeric: tabular-nums; }
   .nada { color: var(--suave); padding: 12px 0; }
   .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
   .item {
@@ -180,9 +192,18 @@
     <div class="abas">
       <button type="button" class="ativa" data-aba="ultimos">Últimos lançamentos</button>
       <button type="button" data-aba="placar">Placar com valores</button>
+      <button type="button" data-aba="vendas">Vendas</button>
     </div>
     <table id="aba-ultimos"><tbody id="ultimos"></tbody></table>
     <table id="aba-placar" hidden><tbody id="placar"></tbody></table>
+    <div id="aba-vendas" hidden>
+      <div class="resumo-vendas">
+        <div><span>Total vendido</span><b id="vTotal"></b></div>
+        <div><span>Pedidos</span><b id="vPedidos"></b></div>
+        <div><span>Média por pedido</span><b id="vMedia"></b></div>
+      </div>
+      <table><tbody id="vendas"></tbody></table>
+    </div>
   </section>
 </main>
 
@@ -223,6 +244,7 @@ const separarEmoji = nome => {
 };
 let estado = { ranking: [], pessoas: [], ultimos: [], eventos: [], cardapio: [] };
 const pedido = new Map(); // nome do item -> { nome, preco, qtd }
+const fechadas = new Set(); // categorias minimizadas
 
 async function post(url, body) {
   const r = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
@@ -270,7 +292,11 @@ function desenharItens() {
   const k = chave($('busca').value);
   const secoes = estado.categorias.map(cat => {
     const itens = estado.cardapio.filter(i => i.cat === cat && chave(i.nome).includes(k));
-    return itens.length && el('section', { className: 'categoria' }, el('h3', { textContent: cat }),
+    if (!itens.length) return;
+    const sec = el('details', { className: 'categoria', open: !!k || !fechadas.has(cat) }, // buscando: tudo aberto
+      el('summary', { onmousedown: e => e.preventDefault() }, cat, el('small', { textContent: `${itens.length} itens` })));
+    sec.ontoggle = () => { if (!k) sec.open ? fechadas.delete(cat) : fechadas.add(cat); };
+    sec.append(
       el('div', { className: 'grade' }, ...itens.map(i => {
         const [emoji, rotulo] = separarEmoji(i.nome);
         const b = el('button', { type: 'button', className: 'item' },
@@ -281,6 +307,7 @@ function desenharItens() {
         b.onclick = () => mudar(i.nome, i.preco, 1);
         return b;
       })));
+    return sec;
   }).filter(Boolean);
   $('itens').replaceChildren(...(secoes.length ? secoes : [el('div', { className: 'nada', textContent: 'Nada com esse nome no cardápio.' })]));
   desenharPedido();
@@ -321,6 +348,18 @@ async function carregar() {
       await post('/api/apagar', { id: l.id }); aviso(`Apagado: ${l.nome} — ${brl(l.valor)}`); carregar();
     } })))));
   if (!estado.ultimos.length) $('ultimos').append(el('tr', {}, el('td', { className: 'hora', textContent: 'Nenhum lançamento ainda.' })));
+
+  const v = estado.vendas;
+  $('vTotal').textContent = brl(v.total);
+  $('vPedidos').textContent = v.pedidos;
+  $('vMedia').textContent = brl(v.pedidos ? v.total / v.pedidos : 0);
+  $('vendas').replaceChildren(...v.itens.map(i => el('tr', {},
+    el('td', { textContent: i.nome }), el('td', { className: 'n', textContent: i.qtd + ' un.' }),
+    el('td', { className: 'n', textContent: brl(i.valor) }))));
+  if (v.outros > 0.009) $('vendas').append(el('tr', {},
+    el('td', { className: 'hora', textContent: 'Outros valores (digitados à mão ou itens que saíram do cardápio)' }),
+    el('td'), el('td', { className: 'n', textContent: brl(v.outros) })));
+  if (!v.pedidos) $('vendas').append(el('tr', {}, el('td', { className: 'hora', textContent: 'Nenhuma venda neste evento.' })));
   dica();
 }
 
@@ -368,8 +407,7 @@ $('lancar').onsubmit = async e => {
 // ---------- abas ----------
 document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('ativa', x === b));
-  $('aba-ultimos').hidden = b.dataset.aba !== 'ultimos';
-  $('aba-placar').hidden = b.dataset.aba !== 'placar';
+  for (const a of ['ultimos', 'placar', 'vendas']) $('aba-' + a).hidden = b.dataset.aba !== a;
 });
 
 // ---------- configurações ----------
